@@ -1,0 +1,13 @@
+# Duplica (não estende) o application.yml principal: um arquivo de mesmo nome em
+# src/test/resources tem precedência total no classpath de teste, não faz merge.
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+jwt:
+  secret: HtDdEhbmPTwrDPaPld4CwLL/fEZ495IEp7egJzClaqBFo1x8NQr4R0x2/L6GnuOQ
+  expiration-ms: 86400000
