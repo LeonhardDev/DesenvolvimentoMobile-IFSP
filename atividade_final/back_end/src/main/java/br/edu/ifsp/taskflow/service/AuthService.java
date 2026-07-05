@@ -10,13 +10,12 @@ import br.edu.ifsp.taskflow.repository.UserRepository;
 import br.edu.ifsp.taskflow.security.CustomUserPrincipal;
 import br.edu.ifsp.taskflow.security.JwtService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.http.HttpStatus;
 
 @Service
 @RequiredArgsConstructor
@@ -33,9 +32,9 @@ public class AuthService {
         }
 
         User user = User.builder()
-                .nome(request.nome())
+                .name(request.name())
                 .email(request.email())
-                .passwordHash(passwordEncoder.encode(request.senha()))
+                .passwordHash(passwordEncoder.encode(request.password()))
                 .role(Role.USER)
                 .build();
         userRepository.save(user);
@@ -45,12 +44,9 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.email(), request.senha()));
-        } catch (AuthenticationException e) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas");
-        }
+        // AuthenticationException (credenciais inválidas) propaga para o GlobalExceptionHandler,
+        // que converte para 401.
+        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.email(), request.password()));
 
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas"));

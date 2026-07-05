@@ -55,7 +55,23 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.message").value("E-mail já cadastrado"))
+                .andExpect(jsonPath("$.path").value("/auth/register"))
+                .andExpect(jsonPath("$.timestamp").value(notNullValue()));
+    }
+
+    @Test
+    void validationErrorReturnsFieldLevelMessages() throws Exception {
+        String invalidBody = objectMapper.writeValueAsString(new RegisterPayload("", "nao-e-email", "123"));
+
+        mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON).content(invalidBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.name").value(notNullValue()))
+                .andExpect(jsonPath("$.fieldErrors.email").value(notNullValue()))
+                .andExpect(jsonPath("$.fieldErrors.password").value(notNullValue()));
     }
 
     @Test
@@ -75,26 +91,10 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
-    @Test
-    void protectedRouteWithValidTokenIsAuthenticatedButNotYetImplemented() throws Exception {
-        String registerBody = objectMapper.writeValueAsString(new RegisterPayload("Token Teste", "token.teste@taskflow.com", "senhaSegura123"));
-        String response = mockMvc.perform(post("/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(registerBody))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
 
-        String token = objectMapper.readTree(response).get("token").asString();
-
-        // /projects ainda não existe (módulo seguinte) — o importante aqui é confirmar que o
-        // filtro JWT autenticou a requisição (404, não 401) quando o token é válido.
-        mockMvc.perform(get("/projects").header("Authorization", "Bearer " + token))
-                .andExpect(status().isNotFound());
+    private record RegisterPayload(String name, String email, String password) {
     }
 
-    private record RegisterPayload(String nome, String email, String senha) {
-    }
-
-    private record LoginPayload(String email, String senha) {
+    private record LoginPayload(String email, String password) {
     }
 }

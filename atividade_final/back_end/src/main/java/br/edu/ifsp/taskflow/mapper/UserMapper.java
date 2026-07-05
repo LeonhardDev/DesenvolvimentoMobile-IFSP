@@ -9,6 +9,6 @@ public class UserMapper {
     }
 
     public static UserSummaryResponse toSummary(User user) {
-        return new UserSummaryResponse(user.getId(), user.getNome(), user.getEmail());
+        return new UserSummaryResponse(user.getId(), user.getName(), user.getEmail());
     }
 }

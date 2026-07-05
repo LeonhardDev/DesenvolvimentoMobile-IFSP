@@ -19,7 +19,7 @@ class UserRepositoryIntegrationTest {
     @Test
     void savesAndFindsUserByEmail() {
         User user = User.builder()
-                .nome("Gustavo Coelho")
+                .name("Gustavo Coelho")
                 .email("gustavo@taskflow.com")
                 .passwordHash("hash-fake")
                 .role(Role.USER)
@@ -31,7 +31,7 @@ class UserRepositoryIntegrationTest {
                 .isPresent()
                 .get()
                 .satisfies(found -> {
-                    assertThat(found.getNome()).isEqualTo("Gustavo Coelho");
+                    assertThat(found.getName()).isEqualTo("Gustavo Coelho");
                     assertThat(found.getRole()).isEqualTo(Role.USER);
                 });
         assertThat(userRepository.existsByEmail("gustavo@taskflow.com")).isTrue();
