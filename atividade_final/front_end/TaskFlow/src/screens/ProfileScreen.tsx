@@ -1,40 +1,33 @@
 import React from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  SafeAreaView 
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import { iniciais } from '../utils/mappers';
+import { roleLabel } from '../utils/jwt';
 
 export function ProfileScreen() {
-  const navigation = useNavigation<any>();
+  const { user, role, signOut } = useAuth();
 
-  const handleLogout = () => {
-    // Aqui o back-end vai limpar o JWT do AsyncStorage no futuro
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Login' }],
-    });
+  const handleLogout = async () => {
+    // Limpa o JWT do armazenamento seguro; o navegador raiz volta para o Login sozinho.
+    await signOut();
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        
+
         <Text style={styles.pageTitle}>Meu Perfil</Text>
 
         {/* Card de Informações do Usuário */}
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>AS</Text>
+            <Text style={styles.avatarText}>{user ? iniciais(user.name) : ''}</Text>
           </View>
-          <Text style={styles.userName}>Ana Silva</Text>
-          <Text style={styles.userEmail}>ana.silva@email.com</Text>
-          
+          <Text style={styles.userName}>{user?.name ?? ''}</Text>
+          <Text style={styles.userEmail}>{user?.email ?? ''}</Text>
+
           <View style={styles.rolePill}>
-            <Text style={styles.roleText}>Administrador</Text>
+            <Text style={styles.roleText}>{roleLabel(role)}</Text>
           </View>
         </View>
 
@@ -68,7 +61,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F8FAFC' },
   container: { flex: 1, padding: 24 },
   pageTitle: { fontSize: 28, fontWeight: 'bold', color: '#0F172A', marginBottom: 32 },
-  
+
   profileCard: { backgroundColor: '#FFFFFF', padding: 32, borderRadius: 24, alignItems: 'center', marginBottom: 32, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#0F172A', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   avatarText: { color: '#FFFFFF', fontSize: 28, fontWeight: 'bold' },
@@ -82,7 +75,7 @@ const styles = StyleSheet.create({
   menuIcon: { fontSize: 20, marginRight: 16 },
   menuText: { flex: 1, fontSize: 16, color: '#0F172A', fontWeight: '500' },
   menuChevron: { fontSize: 20, color: '#94A3B8' },
-  
+
   logoutItem: { borderBottomWidth: 0 },
-  logoutText: { flex: 1, fontSize: 16, color: '#EF4444', fontWeight: 'bold' }
+  logoutText: { flex: 1, fontSize: 16, color: '#EF4444', fontWeight: 'bold' },
 });

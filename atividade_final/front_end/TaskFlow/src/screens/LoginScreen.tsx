@@ -1,31 +1,41 @@
 import React, { useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  KeyboardAvoidingView, 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
   Platform,
-  SafeAreaView
+  SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import { ApiFetchError } from '../api/client';
 
 export function LoginScreen() {
-  const navigation = useNavigation<any>();  
+  const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [erro, setErro] = useState<string | null>(null);
+  const [carregando, setCarregando] = useState(false);
 
-
-  
-  const handleLogin = () => {
-    // No futuro, aqui entrará a lógica de Autenticação com o Back-end
-    navigation.navigate('MainTabs');
+  const handleLogin = async () => {
+    setErro(null);
+    setCarregando(true);
+    try {
+      // Autentica no backend; ao ter sucesso, o navegador raiz troca para o app automaticamente.
+      await signIn(email.trim(), password);
+    } catch (e) {
+      setErro(e instanceof ApiFetchError ? e.message : 'Não foi possível entrar. Tente novamente.');
+    } finally {
+      setCarregando(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
@@ -51,6 +61,7 @@ export function LoginScreen() {
             autoCapitalize="none"
             value={email}
             onChangeText={setEmail}
+            editable={!carregando}
           />
 
           <Text style={styles.label}>Senha</Text>
@@ -61,10 +72,21 @@ export function LoginScreen() {
             secureTextEntry
             value={password}
             onChangeText={setPassword}
+            editable={!carregando}
           />
 
-          <TouchableOpacity style={styles.primaryButton} onPress={handleLogin}>
-            <Text style={styles.primaryButtonText}>Entrar</Text>
+          {erro && <Text style={styles.errorText}>{erro}</Text>}
+
+          <TouchableOpacity
+            style={[styles.primaryButton, carregando && styles.primaryButtonDisabled]}
+            onPress={handleLogin}
+            disabled={carregando}
+          >
+            {carregando ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Entrar</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.forgotPassword}>
@@ -155,12 +177,20 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     backgroundColor: '#FFFFFF',
   },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 14,
+    marginBottom: 12,
+  },
   primaryButton: {
     backgroundColor: '#0F172A',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 8,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.7,
   },
   primaryButtonText: {
     color: '#FFFFFF',

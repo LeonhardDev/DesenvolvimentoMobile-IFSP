@@ -1,28 +1,60 @@
-import React from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TextInput, 
-  FlatList, 
-  TouchableOpacity, 
-  SafeAreaView 
+import React, { useCallback, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  FlatList,
+  TouchableOpacity,
+  SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
-
-// Dados falsos para testarmos o visual
-const MOCK_PROJECTS = [
-  { id: '1', title: 'Redesign do Site', category: 'Design & Dev', status: 'Em andamento', progress: 58, members: 4, tasks: '7/12' },
-  { id: '2', title: 'Lançamento do App', category: 'Produto', status: 'Em andamento', progress: 55, members: 6, tasks: '11/20' },
-  { id: '3', title: 'Migração de Dados', category: 'Engenharia', status: 'Concluído', progress: 100, members: 3, tasks: '15/15' },
-];
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { listProjects } from '../api/projects';
+import { ApiFetchError } from '../api/client';
+import { useAuth } from '../context/AuthContext';
+import type { Project } from '../types';
+import { PROJECT_STATUS_LABEL, iniciais } from '../utils/mappers';
 
 export function ProjectsScreen() {
-  // Cabeçalho e Resumo da tela (Fica no topo da lista)
+  const navigation = useNavigation<any>();
+  const { user } = useAuth();
+
+  const [projetos, setProjetos] = useState<Project[]>([]);
+  const [busca, setBusca] = useState('');
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const carregar = useCallback(async () => {
+    setErro(null);
+    try {
+      setProjetos(await listProjects());
+    } catch (e) {
+      setErro(e instanceof ApiFetchError ? e.message : 'Erro ao carregar projetos.');
+    } finally {
+      setCarregando(false);
+    }
+  }, []);
+
+  // Recarrega ao focar a tela (reflete projetos recém-criados).
+  useFocusEffect(
+    useCallback(() => {
+      carregar();
+    }, [carregar]),
+  );
+
+  // Resumo derivado dos dados reais (antes era hardcoded).
+  const total = projetos.length;
+  const ativos = projetos.filter((p) => p.status === 'ATIVO').length;
+  const concluidos = projetos.filter((p) => p.status === 'CONCLUIDO').length;
+
+  const filtrados = projetos.filter((p) => p.name.toLowerCase().includes(busca.trim().toLowerCase()));
+
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       <View style={styles.topBar}>
         <View>
-          <Text style={styles.greeting}>Olá, Ana Silva 👋</Text>
+          <Text style={styles.greeting}>Olá, {user?.name ?? ''} 👋</Text>
           <Text style={styles.pageTitle}>Meus Projetos</Text>
         </View>
         <View style={styles.profileSection}>
@@ -30,81 +62,101 @@ export function ProjectsScreen() {
             <Text>🔔</Text>
           </TouchableOpacity>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>AS</Text>
+            <Text style={styles.avatarText}>{user ? iniciais(user.name) : ''}</Text>
           </View>
         </View>
       </View>
 
       <View style={styles.searchContainer}>
         <Text style={styles.searchIcon}>🔍</Text>
-        <TextInput 
-          style={styles.searchInput} 
-          placeholder="Buscar projetos..." 
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar projetos..."
           placeholderTextColor="#94A3B8"
+          value={busca}
+          onChangeText={setBusca}
         />
       </View>
 
       <View style={styles.summaryContainer}>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryNumber}>4</Text>
+          <Text style={styles.summaryNumber}>{total}</Text>
           <Text style={styles.summaryText}>Total</Text>
         </View>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryNumber}>2</Text>
+          <Text style={styles.summaryNumber}>{ativos}</Text>
           <Text style={styles.summaryText}>Ativos</Text>
         </View>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryNumber}>1</Text>
+          <Text style={styles.summaryNumber}>{concluidos}</Text>
           <Text style={styles.summaryText}>Concluídos</Text>
         </View>
       </View>
 
       <View style={styles.listHeader}>
         <Text style={styles.listTitle}>Todos os projetos</Text>
-        <TouchableOpacity style={styles.newButton}>
+        <TouchableOpacity style={styles.newButton} onPress={() => navigation.navigate('NewProject')}>
           <Text style={styles.newButtonText}>+ Novo</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 
-  // Como cada projeto será desenhado
-  const renderProjectCard = ({ item }: { item: typeof MOCK_PROJECTS[0] }) => (
-    <TouchableOpacity style={styles.projectCard}>
-      <View style={styles.cardTopRow}>
-        <View>
-          <Text style={styles.projectTitle}>{item.title}</Text>
-          <Text style={styles.projectCategory}>{item.category}</Text>
+  const renderProjectCard = ({ item }: { item: Project }) => {
+    const statusLabel = PROJECT_STATUS_LABEL[item.status];
+    return (
+      <TouchableOpacity
+        style={styles.projectCard}
+        onPress={() => navigation.navigate('Tarefas', { projectId: item.id })}
+      >
+        <View style={styles.cardTopRow}>
+          <View>
+            <Text style={styles.projectTitle}>{item.name}</Text>
+            <Text style={styles.projectCategory}>{item.category ?? 'Sem categoria'}</Text>
+          </View>
+          <View style={[styles.statusPill, item.status === 'CONCLUIDO' && styles.statusPillDone]}>
+            <Text style={styles.statusText}>{statusLabel}</Text>
+          </View>
         </View>
-        <View style={[styles.statusPill, item.status === 'Concluído' && styles.statusPillDone]}>
-          <Text style={styles.statusText}>{item.status}</Text>
-        </View>
-      </View>
 
-      <View style={styles.progressSection}>
-        <View style={styles.progressRow}>
-          <Text style={styles.progressLabel}>Progresso</Text>
-          <Text style={styles.progressPercent}>{item.progress}%</Text>
+        <View style={styles.progressSection}>
+          <View style={styles.progressRow}>
+            <Text style={styles.progressLabel}>Progresso</Text>
+            <Text style={styles.progressPercent}>{item.progressPercentage}%</Text>
+          </View>
+          <View style={styles.progressBarBackground}>
+            <View style={[styles.progressBarFill, { width: `${item.progressPercentage}%` }]} />
+          </View>
         </View>
-        <View style={styles.progressBarBackground}>
-          <View style={[styles.progressBarFill, { width: `${item.progress}%` }]} />
-        </View>
-      </View>
 
-      <View style={styles.cardBottomRow}>
-        <Text style={styles.bottomText}>👥 {item.members} membros</Text>
-        <Text style={styles.bottomText}>{item.tasks} tarefas</Text>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.cardBottomRow}>
+          <Text style={styles.bottomText}>👥 {item.members.length} membros</Text>
+          <Text style={styles.bottomText}>
+            {item.completedTasks}/{item.totalTasks} tarefas
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderEmpty = () => {
+    if (carregando) {
+      return <ActivityIndicator style={styles.stateBox} size="large" color="#0F172A" />;
+    }
+    if (erro) {
+      return <Text style={[styles.stateBox, styles.errorText]}>{erro}</Text>;
+    }
+    return <Text style={[styles.stateBox, styles.emptyText]}>Nenhum projeto ainda. Toque em “+ Novo”.</Text>;
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <FlatList
-        data={MOCK_PROJECTS}
-        keyExtractor={(item) => item.id}
+        data={filtrados}
+        keyExtractor={(item) => String(item.id)}
         renderItem={renderProjectCard}
         ListHeaderComponent={renderHeader}
+        ListEmptyComponent={renderEmpty}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
@@ -148,5 +200,8 @@ const styles = StyleSheet.create({
   progressBarBackground: { height: 6, backgroundColor: '#E2E8F0', borderRadius: 3 },
   progressBarFill: { height: 6, backgroundColor: '#0F172A', borderRadius: 3 },
   cardBottomRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  bottomText: { fontSize: 12, color: '#64748B' }
+  bottomText: { fontSize: 12, color: '#64748B' },
+  stateBox: { marginTop: 40, textAlign: 'center' },
+  errorText: { color: '#EF4444', fontSize: 14 },
+  emptyText: { color: '#94A3B8', fontSize: 14 },
 });
